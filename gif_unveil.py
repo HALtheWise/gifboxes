@@ -10,7 +10,7 @@ a GIF that starts with a fully grey frame and reveals one ninth of the image
 import argparse
 import sys
 from pathlib import Path
-from PIL import Image
+from PIL import Image, ImageOps
 
 
 def validate_permutation(perm_str: str) -> list[int]:
@@ -59,6 +59,8 @@ def create_unveil_gif(image_path: str, permutation: list[int], output_path: str,
     """Create the unveiling GIF animation."""
     try:
         original_img = Image.open(image_path)
+        # Apply EXIF orientation to fix rotation issues
+        original_img = ImageOps.exif_transpose(original_img)
         if original_img.mode != 'RGB':
             original_img = original_img.convert('RGB')
         
