@@ -10,13 +10,19 @@ a GIF that starts with a fully grey frame and reveals one ninth of the image
 import argparse
 import sys
 from pathlib import Path
-from PIL import Image, ImageDraw
+from PIL import Image
 
 
 def validate_permutation(perm_str: str) -> list[int]:
     """Validate and parse the permutation string."""
     try:
-        perm = [int(x) for x in perm_str.split(',') if x.strip()]
+        # Handle different input formats: "123456789", "1,2,3,4,5,6,7,8,9", "1 2 3 4 5 6 7 8 9"
+        if ',' in perm_str or ' ' in perm_str:
+            perm = [int(x) for x in perm_str.replace(',', ' ').split() if x.strip()]
+        else:
+            # Single string of digits
+            perm = [int(x) for x in perm_str]
+        
         if len(perm) != 9:
             raise ValueError("Permutation must contain exactly 9 numbers")
         if set(perm) != set(range(1, 10)):
@@ -49,7 +55,7 @@ def create_gray_frame(width: int, height: int) -> Image.Image:
     return Image.new('RGB', (width, height), color=(128, 128, 128))
 
 
-def create_unveil_gif(image_path: str, permutation: list[int], output_path: str):
+def create_unveil_gif(image_path: str, permutation: list[int], output_path: str, duration_seconds: float = 12.0):
     """Create the unveiling GIF animation."""
     try:
         original_img = Image.open(image_path)
@@ -79,13 +85,15 @@ def create_unveil_gif(image_path: str, permutation: list[int], output_path: str)
             
             frames.append(frame)
         
-        # Save as GIF
+        # Calculate frame duration in milliseconds
+        frame_duration_ms = int((duration_seconds * 1000) / len(frames))
+        
+        # Save as GIF (no loop parameter means play once)
         frames[0].save(
             output_path,
             save_all=True,
             append_images=frames[1:],
-            duration=500,  # 500ms per frame
-            loop=0
+            duration=frame_duration_ms
         )
         
         print(f"GIF created successfully: {output_path}")
@@ -98,8 +106,9 @@ def create_unveil_gif(image_path: str, permutation: list[int], output_path: str)
 def main():
     parser = argparse.ArgumentParser(description='Create a progressive unveiling GIF from an image')
     parser.add_argument('image', help='Path to input PNG or JPG image')
-    parser.add_argument('permutation', help='Comma-separated permutation of numbers 1-9 (e.g., "1,2,3,4,5,6,7,8,9")')
-    parser.add_argument('-o', '--output', help='Output GIF path (default: output.gif)', default='output.gif')
+    parser.add_argument('permutation', help='Permutation of numbers 1-9 (e.g., "123546789" or "1 2 3 5 4 6 7 8 9")')
+    parser.add_argument('-o', '--output', help='Output GIF path (default: input filename with .gif extension)')
+    parser.add_argument('-d', '--duration', type=float, default=12.0, help='Total animation duration in seconds (default: 12.0)')
     
     args = parser.parse_args()
     
@@ -108,11 +117,16 @@ def main():
         print(f"Error: Image file '{args.image}' not found")
         sys.exit(1)
     
+    # Set default output path if not provided
+    if args.output is None:
+        input_path = Path(args.image)
+        args.output = str(input_path.with_suffix('.gif'))
+    
     # Validate and parse permutation
     permutation = validate_permutation(args.permutation)
     
     # Create the GIF
-    create_unveil_gif(args.image, permutation, args.output)
+    create_unveil_gif(args.image, permutation, args.output, args.duration)
 
 
 if __name__ == '__main__':
